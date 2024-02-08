@@ -22,3 +22,4 @@ class ChessBot(ChessBotClass):
         move = moves[idx]
 
         return move
+#SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaa
