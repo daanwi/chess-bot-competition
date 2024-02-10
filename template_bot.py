@@ -10,21 +10,31 @@ class ChessBotClass(ABC):
     @abstractmethod
     def __call__(self, board_fen: str) -> chess.Move:
         pass
-
+        
 
 # keep the bot named ChessBot when submitting
 class ChessBot(ChessBotClass):
-    def __init__(self, maxDepth=4):
+    def __init__(self, maxDepth=5):
         self.board = chess.Board()
         self.pieceValues = {chess.PAWN: 1, chess.KNIGHT: 3, 
                             chess.BISHOP: 3, chess.ROOK: 5,
                             chess.QUEEN: 9, chess.KING: 0}
-        self.maxDepth = maxDepth 
+        self.maxDepth = maxDepth
+        self.checkers = []
                 
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
         return self.findMoveRecursive(self.maxDepth)[1]
+        
+    def captureValue(self, move):
+        # Incorrectly valuates en passant captures as 0
+        pieceType = self.board.piece_type_at(move.to_square)
+        if move.from_square in self.checkers:
+            return 50
+        if pieceType is None:
+            return 0
+        return self.pieceValues[pieceType]
         
     def findRandomMove(self):
         moves = list(self.board.legal_moves)
@@ -58,6 +68,11 @@ class ChessBot(ChessBotClass):
         
         moves = list(self.board.legal_moves)
         random.shuffle(moves)
+        # Killer move heuristic
+        self.checkers = self.board.checkers()
+        moves.sort(reverse=True, key=self.captureValue)
+        # print(moves)
+        
         for move in moves:
             self.board.push(move)
             evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
