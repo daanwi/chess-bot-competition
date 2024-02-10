@@ -4,6 +4,7 @@ import math
 from enum import Enum
 
 from abc import ABC, abstractmethod
+import cProfile
 
 class ChessBotClass(ABC):
     @abstractmethod
@@ -13,15 +14,17 @@ class ChessBotClass(ABC):
 
 # keep the bot named ChessBot when submitting
 class ChessBot(ChessBotClass):
-    def __init__(self):
+    def __init__(self, maxDepth=4):
         self.board = chess.Board()
         self.pieceValues = {chess.PAWN: 1, chess.KNIGHT: 3, 
                             chess.BISHOP: 3, chess.ROOK: 5,
-                            chess.QUEEN: 9, chess.KING: 10000}
+                            chess.QUEEN: 9, chess.KING: 0}
+        self.maxDepth = maxDepth 
                 
-    def __call__(self, board_fen):
-        self.board = chess.Board(board_fen)
-        return self.findMoveRecursive(2)[1]
+    def __call__(self, board_fen = None):
+        if board_fen:
+            self.board = chess.Board(board_fen)
+        return self.findMoveRecursive(self.maxDepth)[1]
         
     def findRandomMove(self):
         moves = list(self.board.legal_moves)
@@ -31,14 +34,21 @@ class ChessBot(ChessBotClass):
     def findMoveRecursive(self, depth):
         return self.recurse(depth, 1 if self.board.turn == chess.WHITE else -1)
         
-    def recurse(self, depth, turnMultiplier):
-        outcome = self.board.outcome(claim_draw = True)
-        if outcome:
-            if not outcome.winner:
-                    return 0, None
-            elif outcome.winner == chess.WHITE:
-                    return math.inf, None
-            return -math.inf, None
+    def getOutcome(self):
+        outcome = self.board.outcome(claim_draw = False)
+        if outcome is None:
+            return None
+        if outcome.winner is None:
+            return 0
+        elif outcome.winner == chess.WHITE:
+            return 10000
+        return -10000
+        
+    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf):
+        # Check if the game has ended
+        outcome = self.getOutcome()
+        if outcome is not None:
+            return outcome, None
         if not depth:
             return self.evaluate(), None
         
@@ -49,26 +59,38 @@ class ChessBot(ChessBotClass):
         random.shuffle(moves)
         for move in moves:
             self.board.push(move)
-            evaluation, _ = self.recurse(depth - 1, -turnMultiplier)
-            #print("Eval: ", evaluation, "BestEval: ", bestEval, "Move: ", move, "BestMove: ", bestMove, "Depth: ", depth, "Turn: ", turnMultiplier)
+            evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
+            #print("evaluation: ", evaluation, "bestEval: ", bestEval, "move: ", move, "bestMove: ", bestMove, "depth: ", depth, "turnMultiplier: ", turnMultiplier)
             if evaluation * turnMultiplier > bestEval * turnMultiplier:
                 bestEval = evaluation
                 bestMove = move
-            self.board.pop()
                 
+                if (turnMultiplier == 1):
+                    alpha = max(alpha, bestEval)
+                    if bestEval >= beta:
+                        self.board.pop()
+                        break
+                if (turnMultiplier == -1):
+                    beta = min(beta, bestEval)
+                    if bestEval <= alpha:
+                        self.board.pop()
+                        break
+                
+            self.board.pop()
+        if not moves:
+            print("No moves found!")
+            print("depth: ", depth, "turnMultiplier: ", turnMultiplier, "outcome: ", outcome)
+            print(self.board)
+            raise "AAAAA"
+        if not bestMove:
+            print("No move selected!")
+            print("depth: ", depth, "turnMultiplier: ", turnMultiplier, "outcome: ", outcome, "bestMove: ", bestMove)
+            print(self.board)
+            raise "AAAAA"
         return bestEval, bestMove
         
-    def evaluate(self):
-        # Check if the game is over
-        outcome = self.board.outcome(claim_draw = True)
-        if outcome:
-            if not outcome.winner:
-                    return 0
-            elif outcome.winner == chess.WHITE:
-                    return math.inf
-            return -math.inf
-            
-        # The game is not over. Evaluate the board
+    def evaluate(self): 
+        # Assumes the game has not ended
         blackTotal = 0
         whiteTotal = 0
         pieces = self.board.piece_map()
@@ -83,4 +105,4 @@ class ChessBot(ChessBotClass):
 if __name__ == "__main__":
     #bot = ChessBot("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     bot = ChessBot()
-    bot.evaluate()
+    cProfile.runctx('bot()', globals(), locals())
