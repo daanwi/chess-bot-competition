@@ -34,19 +34,20 @@ class ChessBot(ChessBotClass):
     def findMoveRecursive(self, depth):
         return self.recurse(depth, 1 if self.board.turn == chess.WHITE else -1)
         
-    def getOutcome(self):
+    def getOutcome(self, depth):
         outcome = self.board.outcome(claim_draw = False)
         if outcome is None:
             return None
         if outcome.winner is None:
             return 0
+        # Depth is added to incentivise quick checkmates
         elif outcome.winner == chess.WHITE:
-            return 10000
-        return -10000
+            return 10000 + depth
+        return -10000 - depth
         
     def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf):
         # Check if the game has ended
-        outcome = self.getOutcome()
+        outcome = self.getOutcome(depth)
         if outcome is not None:
             return outcome, None
         if not depth:
@@ -89,7 +90,7 @@ class ChessBot(ChessBotClass):
             raise "AAAAA"
         return bestEval, bestMove
         
-    def evaluate(self): 
+    def evaluate(self):
         # Assumes the game has not ended
         blackTotal = 0
         whiteTotal = 0
