@@ -21,11 +21,19 @@ class ChessBot(ChessBotClass):
                             chess.QUEEN: 9, chess.KING: 0}
         self.maxDepth = maxDepth
         self.checkers = []
-                
+        self.pastPositions = []
+        #self.initializeZobristHashNumbers()
+    
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
         return self.findMoveRecursive(self.maxDepth)[1]
+        
+    def initializeZobristHashNumbers():
+        # Implemented according to https://www.chessprogramming.org/Zobrist_Hashing
+        # And https://en.wikipedia.org/wiki/Zobrist_hashing
+        pass
+        
         
     def captureValue(self, move):
         # Incorrectly valuates en passant captures as 0
@@ -36,12 +44,10 @@ class ChessBot(ChessBotClass):
             return 0
         return self.pieceValues[pieceType]
         
-    def findRandomMove(self):
-        moves = list(self.board.legal_moves)
-        idx = int(random.random() * len(moves))
-        return moves[idx]
-        
     def findMoveRecursive(self, depth):
+        #self.pastPositions = []
+        while(len(self.pastPositions) < depth + 1):
+            self.pastPositions.append({})
         return self.recurse(depth, 1 if self.board.turn == chess.WHITE else -1)
         
     def getOutcome(self, depth):
@@ -55,13 +61,17 @@ class ChessBot(ChessBotClass):
             return 10000 + depth
         return -10000 - depth
         
-    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf):
+    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=True):
         # Check if the game has ended
         outcome = self.getOutcome(depth)
         if outcome is not None:
             return outcome, None
-        if not depth:
-            return self.evaluate(), None
+        
+        if (not ignoreStuff):
+            fen = self.board.board_fen()
+        if depth == 0:
+            ret = self.evaluate()
+            return ret, None
         
         bestEval = -math.inf * turnMultiplier
         bestMove = None
@@ -71,12 +81,19 @@ class ChessBot(ChessBotClass):
         # Killer move heuristic
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
-        # print(moves)
         
         for move in moves:
             self.board.push(move)
-            evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
-            #print("evaluation: ", evaluation, "bestEval: ", bestEval, "move: ", move, "bestMove: ", bestMove, "depth: ", depth, "turnMultiplier: ", turnMultiplier)
+            if (not ignoreStuff):
+                fen = self.board.board_fen()
+            if not ignoreStuff and fen in self.pastPositions[depth]:
+                evaluation = self.pastPositions[depth][fen]
+            else:
+                evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
+                if (not ignoreStuff):
+                    self.pastPositions[depth][fen] = evaluation
+            self.board.pop()
+            
             if evaluation * turnMultiplier > bestEval * turnMultiplier:
                 bestEval = evaluation
                 bestMove = move
@@ -84,25 +101,15 @@ class ChessBot(ChessBotClass):
                 if (turnMultiplier == 1):
                     alpha = max(alpha, bestEval)
                     if bestEval >= beta:
-                        self.board.pop()
-                        break
+                        #break
+                        return 1000000, None
+                    
                 if (turnMultiplier == -1):
                     beta = min(beta, bestEval)
                     if bestEval <= alpha:
-                        self.board.pop()
-                        break
-                
-            self.board.pop()
-        if not moves:
-            print("No moves found!")
-            print("depth: ", depth, "turnMultiplier: ", turnMultiplier, "outcome: ", outcome)
-            print(self.board)
-            raise "AAAAA"
-        if not bestMove:
-            print("No move selected!")
-            print("depth: ", depth, "turnMultiplier: ", turnMultiplier, "outcome: ", outcome, "bestMove: ", bestMove)
-            print(self.board)
-            raise "AAAAA"
+                        #break
+                        return -1000000, None
+            
         return bestEval, bestMove
         
     def evaluate(self):
@@ -119,6 +126,12 @@ class ChessBot(ChessBotClass):
         return whiteTotal - blackTotal
                 
 if __name__ == "__main__":
-    #bot = ChessBot("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    bot = ChessBot()
+    bot = ChessBot(maxDepth=5)
+    #bot.verifyEvaluation(depth=4)
+    #bot()
+    '''for _ in range(100):
+        bot.pastPositions = []
+        while(len(bot.pastPositions) < 2):
+            bot.pastPositions.append({})
+        print(bot.recurse(1, -1, 3, math.inf))'''
     cProfile.runctx('bot()', globals(), locals())
