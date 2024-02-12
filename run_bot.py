@@ -167,14 +167,14 @@ class Judge():
             display(board)
 
             # slow down the bots so that we can see them
-            #time.sleep(.25)
+            # time.sleep(.25)
         print("Times used:", player_times)
 
 if __name__ == "__main__":
-	# initialize the bots
-	bot_1 = ChessBot(maxDepth=5)
-	bot_2 = PieceValueBot(1)
+    # initialize the bots
+    bot_1 = ChessBot(maxDepth=5)
+    bot_2 = PieceValueBot(1)
 
-	# run tournament
-	judge = Judge(bot_1, bot_2)
-	judge.run_game()
+    # run tournament
+    judge = Judge(bot_1, bot_2)
+    judge.run_game()

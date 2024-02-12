@@ -5,6 +5,7 @@ from enum import Enum
 
 from abc import ABC, abstractmethod
 import cProfile
+import sys
 
 class ChessBotClass(ABC):
     @abstractmethod
@@ -22,17 +23,38 @@ class ChessBot(ChessBotClass):
         self.maxDepth = maxDepth
         self.checkers = []
         self.pastPositions = []
-        #self.initializeZobristHashNumbers()
+        self.initializeZobristHashNumbers()
+        self.zobristHash = self.getZobristHash()
+        self.skips = 0
+        print(self.zobristHash)
     
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
-        return self.findMoveRecursive(self.maxDepth)[1]
-        
-    def initializeZobristHashNumbers():
+        ret = self.findMoveRecursive(self.maxDepth)[1]
+        print("Skips: ", self.skips)
+        return ret
+    
+    
+    def initializeZobristHashNumbers(self):
         # Implemented according to https://www.chessprogramming.org/Zobrist_Hashing
         # And https://en.wikipedia.org/wiki/Zobrist_hashing
-        pass
+        self.piecePositionHashes = []
+        for color in [chess.BLACK, chess.WHITE]:
+            self.piecePositionHashes.append([])
+            self.piecePositionHashes[color].append([])
+            for pieceType in self.pieceValues:
+                self.piecePositionHashes[color].append([])
+                for itr in range(64):
+                    self.piecePositionHashes[color][pieceType].append(random.randint(-sys.maxsize, sys.maxsize))
+        self.blackToMoveHash = random.randint(-sys.maxsize, sys.maxsize)
+        
+        
+        self.queenCastleHashes = [random.randint(-sys.maxsize, sys.maxsize), random.randint(-sys.maxsize, sys.maxsize)]
+        self.kingCastleHashes = [random.randint(-sys.maxsize, sys.maxsize), random.randint(-sys.maxsize, sys.maxsize)]
+        self.enPassantHashes = []
+        for itr in range(8):
+            self.enPassantHashes.append(random.randint(-sys.maxsize, sys.maxsize))
         
         
     def captureValue(self, move):
@@ -61,14 +83,12 @@ class ChessBot(ChessBotClass):
             return 10000 + depth
         return -10000 - depth
         
-    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=True):
+    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=False):
         # Check if the game has ended
         outcome = self.getOutcome(depth)
         if outcome is not None:
             return outcome, None
         
-        if (not ignoreStuff):
-            fen = self.board.board_fen()
         if depth == 0:
             ret = self.evaluate()
             return ret, None
@@ -85,9 +105,10 @@ class ChessBot(ChessBotClass):
         for move in moves:
             self.board.push(move)
             if (not ignoreStuff):
-                fen = self.board.board_fen()
+                fen = self.getZobristHash()
             if not ignoreStuff and fen in self.pastPositions[depth]:
                 evaluation = self.pastPositions[depth][fen]
+                self.skips += 1
             else:
                 evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
                 if (not ignoreStuff):
@@ -124,6 +145,35 @@ class ChessBot(ChessBotClass):
             else:
                 blackTotal += self.pieceValues[piece.piece_type]
         return whiteTotal - blackTotal
+        
+    def getZobristHash(self):
+        pieces = self.board.piece_map()
+        boardHash = 0
+        
+        for square, piece in pieces.items():
+            boardHash ^= self.piecePositionHashes[piece.color][piece.piece_type][square]
+        
+        if self.board.turn == chess.BLACK:
+            boardHash ^= self.blackToMoveHash
+        
+        if self.board.has_kingside_castling_rights(chess.BLACK):
+            boardHash ^= self.kingCastleHashes[chess.BLACK]
+        
+        if self.board.has_kingside_castling_rights(chess.WHITE):
+            boardHash ^= self.kingCastleHashes[chess.WHITE]
+            
+        if self.board.has_queenside_castling_rights(chess.BLACK):
+            boardHash ^= self.queenCastleHashes[chess.BLACK]
+            
+        if self.board.has_queenside_castling_rights(chess.WHITE):
+            boardHash ^= self.queenCastleHashes[chess.WHITE]
+        
+        if (not self.board.ep_square):
+            return boardHash
+        
+        boardHash ^= self.enPassantHashes[self.board.ep_square % 8]
+        
+        return boardHash
                 
 if __name__ == "__main__":
     bot = ChessBot(maxDepth=5)
