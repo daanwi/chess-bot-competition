@@ -56,7 +56,6 @@ class ChessBot(ChessBotClass):
         for itr in range(8):
             self.enPassantHashes.append(random.randint(-sys.maxsize, sys.maxsize))
         
-        
     def captureValue(self, move):
         # Incorrectly valuates en passant captures as 0
         pieceType = self.board.piece_type_at(move.to_square)
