@@ -166,7 +166,10 @@ class ChessBot(ChessBotClass):
                 blackTotal += self.pieceValues[piece.piece_type]
         evaluation = whiteTotal - blackTotal
         moves = len([self.board.legal_moves])
-        evaluation += moves / 300
+        if self.board.turn == chess.WHITE:
+            evaluation += moves / 300
+        else:
+            evaluation -= moves / 300
         return evaluation
         
     def moveWithHash(self, move):
