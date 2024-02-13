@@ -16,6 +16,7 @@ class ChessBotClass(ABC):
 # keep the bot named ChessBot when submitting
 class ChessBot(ChessBotClass):
     def __init__(self, maxDepth=5):
+        #self.board = chess.Board("r4rk1/2p2pp1/2p4p/p3q2b/1p2P3/P6P/1PP1NPP1/R2Q1RK1 w - - 1 17")
         self.board = chess.Board()
         self.pieceValues = {chess.PAWN: 1, chess.KNIGHT: 3, 
                             chess.BISHOP: 3, chess.ROOK: 5,
@@ -31,6 +32,7 @@ class ChessBot(ChessBotClass):
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
+            self.zobristHash = self.getZobristHash()
         ret = self.findMoveRecursive(self.maxDepth)[1]
         print("Skips: ", self.skips)
         return ret
@@ -96,23 +98,39 @@ class ChessBot(ChessBotClass):
         bestMove = None
         
         moves = list(self.board.legal_moves)
-        random.shuffle(moves)
-        # Killer move heuristic
+        #random.shuffle(moves)
+        # Killer move heuristic?
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
         
         for move in moves:
-            self.board.push(move)
-            if (not ignoreStuff):
-                fen = self.getZobristHash()
-            if not ignoreStuff and fen in self.pastPositions[depth]:
-                evaluation = self.pastPositions[depth][fen]
+            # Make move
+            if not ignoreStuff:
+                #self.zobristHash = self.getZobristHash()
+                # For exceptional cases: just generate a new one for now
+                oldHash = self.zobristHash
+                self.moveWithHash(move)
+                checkHash = self.getZobristHash()
+                if (checkHash != self.zobristHash):
+                    print("Wrong hash!")
+                    print(checkHash)
+                    print(self.zobristHash)
+                    print(move)
+                    print(self.board)
+                    self.zobristHash = checkHash
+            else:
+                self.board.push(move)
+                
+            if not ignoreStuff and self.zobristHash in self.pastPositions[depth]:
+                evaluation = self.pastPositions[depth][self.zobristHash]
                 self.skips += 1
             else:
                 evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
-                if (not ignoreStuff):
-                    self.pastPositions[depth][fen] = evaluation
+                if not ignoreStuff:
+                    self.pastPositions[depth][self.zobristHash] = evaluation
             self.board.pop()
+            if not ignoreStuff:
+                self.zobristHash = oldHash
             
             if evaluation * turnMultiplier > bestEval * turnMultiplier:
                 bestEval = evaluation
@@ -145,6 +163,44 @@ class ChessBot(ChessBotClass):
                 blackTotal += self.pieceValues[piece.piece_type]
         return whiteTotal - blackTotal
         
+    def moveWithHash(self, move):
+        # Exceptional cases
+        if self.board.is_castling(move):
+            self.board.push(move)
+            self.zobristHash = self.getZobristHash()
+            return
+        if self.board.is_en_passant(move):
+            self.board.push(move)
+            self.zobristHash = self.getZobristHash()
+            return
+            
+        # Remove piece from starting square
+        square = move.from_square
+        piece = self.board.piece_at(square)
+        self.zobristHash ^= self.piecePositionHashes[piece.color][piece.piece_type][square]
+        # Remove piece from ending square
+        square = move.to_square
+        capturedPiece = self.board.piece_at(square)
+        if capturedPiece:
+            self.zobristHash ^= self.piecePositionHashes[capturedPiece.color][capturedPiece.piece_type][square]
+        # Add piece to ending square
+        self.zobristHash ^= self.piecePositionHashes[piece.color][piece.piece_type][square]
+        # Change side to move
+        self.zobristHash ^= self.blackToMoveHash
+        # Remove old en passant flag
+        if self.board.ep_square:
+            self.zobristHash ^= self.enPassantHashes[chess.square_rank(self.board.ep_square)]
+        # Make the move
+        self.board.push(move)
+        # Add new en passant flag
+        if self.board.ep_square:
+            self.zobristHash ^= self.enPassantHashes[chess.square_rank(self.board.ep_square)]
+        # TODO: castling right when moving king / rooks
+        # TODO: moving pawn one up causes issues
+        # TODO: moving pawn 2 also causes issues somehow?
+
+
+        
     def getZobristHash(self):
         pieces = self.board.piece_map()
         boardHash = 0
@@ -170,12 +226,12 @@ class ChessBot(ChessBotClass):
         if (not self.board.ep_square):
             return boardHash
         
-        boardHash ^= self.enPassantHashes[self.board.ep_square % 8]
+        boardHash ^= self.enPassantHashes[chess.square_rank(self.board.ep_square)]
         
         return boardHash
                 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=5)
+    bot = ChessBot(maxDepth=3)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):
