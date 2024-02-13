@@ -120,7 +120,7 @@ class Judge():
         self.time_limit = time_limit
 
     def run_game(self, initial_board_fen:str = None):
-        board = chess.Board("rnbqkb1r/pppppppp/5n2/8/P1P5/8/1P1PPPPP/RNBQKBNR")
+        board = chess.Board()
 
         player_times = [0, 0]
 
@@ -172,8 +172,8 @@ class Judge():
 
 if __name__ == "__main__":
     # initialize the bots
-    bot_1 = ChessBot(maxDepth=5)
-    bot_2 = PieceValueBot(1)
+    bot_1 = ChessBot(maxDepth=6)
+    bot_2 = HumanPlayer()
 
     # run tournament
     judge = Judge(bot_1, bot_2)

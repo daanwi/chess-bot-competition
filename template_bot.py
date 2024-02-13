@@ -84,6 +84,16 @@ class ChessBot(ChessBotClass):
             return 10000 + depth
         return -10000 - depth
         
+    def verifyHash(self):
+        checkHash = self.getZobristHash()
+        if (checkHash != self.zobristHash):
+            print("Wrong hash!")
+            print(checkHash)
+            print(self.zobristHash)
+            print(move)
+            print(self.board)
+            self.zobristHash = checkHash
+        
     def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=False):
         # Check if the game has ended
         outcome = self.getOutcome(depth)
@@ -98,7 +108,7 @@ class ChessBot(ChessBotClass):
         bestMove = None
         
         moves = list(self.board.legal_moves)
-        #random.shuffle(moves)
+        random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
@@ -110,14 +120,6 @@ class ChessBot(ChessBotClass):
                 # For exceptional cases: just generate a new one for now
                 oldHash = self.zobristHash
                 self.moveWithHash(move)
-                checkHash = self.getZobristHash()
-                if (checkHash != self.zobristHash):
-                    print("Wrong hash!")
-                    print(checkHash)
-                    print(self.zobristHash)
-                    print(move)
-                    print(self.board)
-                    self.zobristHash = checkHash
             else:
                 self.board.push(move)
                 
@@ -190,15 +192,28 @@ class ChessBot(ChessBotClass):
         # Remove old en passant flag
         if self.board.ep_square:
             self.zobristHash ^= self.enPassantHashes[chess.square_rank(self.board.ep_square)]
+        # Save old castling flags
+        self.oldQueenCastleWhite = self.board.has_queenside_castling_rights(chess.WHITE)
+        self.oldQueenCastleBlack = self.board.has_queenside_castling_rights(chess.BLACK)
+        self.oldKingCastleWhite = self.board.has_kingside_castling_rights(chess.WHITE)
+        self.oldKingCastleBlack = self.board.has_kingside_castling_rights(chess.BLACK)
         # Make the move
         self.board.push(move)
         # Add new en passant flag
         if self.board.ep_square:
             self.zobristHash ^= self.enPassantHashes[chess.square_rank(self.board.ep_square)]
-        # TODO: castling right when moving king / rooks
-        # TODO: moving pawn one up causes issues
-        # TODO: moving pawn 2 also causes issues somehow?
-
+        # Remove old castling flags
+        if not self.oldKingCastleBlack == self.board.has_kingside_castling_rights(chess.BLACK):
+            self.zobristHash ^= self.kingCastleHashes[chess.BLACK]
+        
+        if not self.oldKingCastleWhite == self.board.has_kingside_castling_rights(chess.WHITE):
+            self.zobristHash ^= self.kingCastleHashes[chess.WHITE]
+            
+        if not self.oldQueenCastleBlack == self.board.has_queenside_castling_rights(chess.BLACK):
+            self.zobristHash ^= self.queenCastleHashes[chess.BLACK]
+            
+        if not self.oldQueenCastleWhite == self.board.has_queenside_castling_rights(chess.WHITE):
+            self.zobristHash ^= self.queenCastleHashes[chess.WHITE]
 
         
     def getZobristHash(self):
@@ -231,7 +246,7 @@ class ChessBot(ChessBotClass):
         return boardHash
                 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=3)
+    bot = ChessBot(maxDepth=5)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):
