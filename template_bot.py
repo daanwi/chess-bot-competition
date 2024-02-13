@@ -33,8 +33,9 @@ class ChessBot(ChessBotClass):
         if board_fen:
             self.board = chess.Board(board_fen)
             self.zobristHash = self.getZobristHash()
-        ret = self.findMoveRecursive(self.maxDepth)[1]
+        evaluation, ret = self.findMoveRecursive(self.maxDepth)
         print("Skips: ", self.skips)
+        print("Evaluation: ", evaluation)
         return ret
     
     
@@ -95,20 +96,23 @@ class ChessBot(ChessBotClass):
             print(self.board)
             self.zobristHash = checkHash
         
-    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=False):
+    def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=True):
         # Check if the game has ended
         outcome = self.getOutcome(depth)
         if outcome is not None:
             return outcome, None
         
-        if depth == 0:
-            ret = self.evaluate()
-            return ret, None
+        moves = list(self.board.legal_moves)
+        if depth < 1:
+            moves = list(filter(self.board.is_capture, moves))
+            if not moves:
+                ret = self.evaluate()
+                return ret, None
         
         bestEval = -math.inf * turnMultiplier
         bestMove = None
         
-        moves = list(self.board.legal_moves)
+        
         #random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
@@ -165,11 +169,16 @@ class ChessBot(ChessBotClass):
             else:
                 blackTotal += self.pieceValues[piece.piece_type]
         evaluation = whiteTotal - blackTotal
-        moves = len([self.board.legal_moves])
+        opponentMoves = len([self.board.legal_moves])
+        self.board.push(chess.Move.null())
+        ownMoves = len([self.board.legal_moves])
         if self.board.turn == chess.WHITE:
-            evaluation += moves / 300
+            evaluation -= opponentMoves / 500
+            evaluation += ownMoves / 300
         else:
-            evaluation -= moves / 300
+            evaluation -= ownMoves / 300
+            evaluation += opponentMoves / 500
+        self.board.pop()
         return evaluation
         
     def moveWithHash(self, move):
