@@ -69,6 +69,7 @@ class ChessBot(ChessBotClass):
         
     def findMoveRecursive(self, depth):
         #self.pastPositions = []
+        self.skips = 0
         while(len(self.pastPositions) < depth + 1):
             self.pastPositions.append({})
         return self.recurse(depth, 1 if self.board.turn == chess.WHITE else -1)
@@ -108,7 +109,7 @@ class ChessBot(ChessBotClass):
         bestMove = None
         
         moves = list(self.board.legal_moves)
-        random.shuffle(moves)
+        #random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
@@ -163,7 +164,10 @@ class ChessBot(ChessBotClass):
                 self.pieceValues[piece.piece_type]
             else:
                 blackTotal += self.pieceValues[piece.piece_type]
-        return whiteTotal - blackTotal
+        evaluation = whiteTotal - blackTotal
+        moves = len([self.board.legal_moves])
+        evaluation += moves / 300
+        return evaluation
         
     def moveWithHash(self, move):
         # Exceptional cases
