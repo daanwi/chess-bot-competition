@@ -125,7 +125,7 @@ class ChessBot(ChessBotClass):
         bestMove = None
 
 
-        #random.shuffle(moves)
+        random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
@@ -138,10 +138,10 @@ class ChessBot(ChessBotClass):
                 #self.zobristHash = self.getZobristHash()
                 # For exceptional cases: just generate a new one for now
                 self.moveWithHash(move)
-                evaluation2 = self.calculateMaterialBalance()
+                '''evaluation2 = self.calculateMaterialBalance()
                 if self.materialBalance != evaluation2:
                     print(f"Wrong eval in move generation! {self.materialBalance}, correct eval: {evaluation2}, move: {move}")
-                    self.materialBalance = evaluation2
+                    self.materialBalance = evaluation2'''
             else:
                 self.board.push(move)
 
@@ -177,12 +177,12 @@ class ChessBot(ChessBotClass):
 
     def evaluate(self):
         # Assumes the game has not ended
-        evaluation2 = self.calculateMaterialBalance()
+        #evaluation2 = self.calculateMaterialBalance()
         evaluation = self.materialBalance
-        if evaluation != evaluation2:
+        '''if evaluation != evaluation2:
             print(f"Wrong eval! {evaluation}. True eval: {evaluation2}.")
-            self.materialBalance = evaluation2
-        '''opponentMoves = len([self.board.legal_moves])
+            self.materialBalance = evaluation2'''
+        opponentMoves = len([self.board.legal_moves])
         self.board.push(chess.Move.null())
         ownMoves = len([self.board.legal_moves])
         if self.board.turn == chess.WHITE:
@@ -191,8 +191,8 @@ class ChessBot(ChessBotClass):
         else:
             evaluation -= ownMoves / 300
             evaluation += opponentMoves / 500
-        self.board.pop()'''
-        return evaluation2
+        self.board.pop()
+        return evaluation
 
     def moveWithHash(self, move):
         # Exceptional cases
@@ -220,9 +220,14 @@ class ChessBot(ChessBotClass):
         if capturedPiece:
             self.zobristHash ^= self.piecePositionHashes[capturedPiece.color][capturedPiece.piece_type][square]
             if capturedPiece.color == chess.WHITE:
-                self.materialBalance -= self.pieceValues[piece.piece_type]
+                self.materialBalance -= self.pieceValues[capturedPiece.piece_type]
             else:
-                self.materialBalance += self.pieceValues[piece.piece_type]
+                self.materialBalance += self.pieceValues[capturedPiece.piece_type]
+        if move.promotion is not None:
+            if piece.color == chess.WHITE:
+                self.materialBalance += self.pieceValues[move.promotion] - 1
+            else:
+                self.materialBalance -= self.pieceValues[move.promotion] - 1
 
         # Add piece to ending square
         self.zobristHash ^= self.piecePositionHashes[piece.color][piece.piece_type][square]
@@ -285,7 +290,7 @@ class ChessBot(ChessBotClass):
         return boardHash
 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=5)
+    bot = ChessBot(maxDepth=4)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):
