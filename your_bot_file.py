@@ -28,15 +28,15 @@ class ChessBot(ChessBotClass):
         self.zobristHash = self.getZobristHash()
         self.skips = 0
         self.materialBalance = 0
-        print(self.zobristHash)
+        #print(self.zobristHash)
 
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
             self.zobristHash = self.getZobristHash()
         evaluation, ret = self.findMoveRecursive(self.maxDepth)
-        print("Skips: ", self.skips)
-        print("Evaluation: ", evaluation)
+        '''print("Skips: ", self.skips)
+        print("Evaluation: ", evaluation)'''
         return ret
 
 
