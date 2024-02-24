@@ -22,12 +22,14 @@ class ChessBot(ChessBotClass):
                             chess.BISHOP: 3, chess.ROOK: 5,
                             chess.QUEEN: 9, chess.KING: 0}
         self.maxDepth = maxDepth
+        self.currentDepth = 0
         self.checkers = []
         self.pastPositions = []
         self.initializeZobristHashNumbers()
         self.zobristHash = self.getZobristHash()
         self.skips = 0
         self.materialBalance = 0
+        self.pieceSquareTables = None
         #print(self.zobristHash)
 
     def __call__(self, board_fen = None):
@@ -112,20 +114,24 @@ class ChessBot(ChessBotClass):
 
     def recurse(self, depth, turnMultiplier, alpha=-math.inf, beta=math.inf, ignoreStuff=False, generateEvals=False):
         # Check if the game has ended
-        outcome = self.getOutcome(depth)
-        if outcome is not None:
-            return outcome, None
-
-        moves = list(self.board.legal_moves)
         if depth < 1:
-            ret = self.evaluate()
-            return ret, None
+            outcome = self.getOutcome(depth)
+            if outcome is not None:
+                return outcome, None
+            return self.evaluate(), None
+            
+        moves = list(self.board.legal_moves)
+        
+        if not moves:
+            outcome = self.getOutcome(depth)
+            # There should always be an outcome because no moves
+            return outcome, None
 
         bestEval = -math.inf * turnMultiplier
         bestMove = None
 
 
-        random.shuffle(moves)
+        #random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
@@ -290,7 +296,7 @@ class ChessBot(ChessBotClass):
         return boardHash
 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=4)
+    bot = ChessBot(maxDepth=5)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):
