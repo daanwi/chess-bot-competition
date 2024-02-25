@@ -30,6 +30,8 @@ class ChessBot(ChessBotClass):
         self.skips = 0
         self.materialBalance = 0
         self.pieceSquareTables = None
+        self.bestLine = []
+        self.lineIDX = 0
         #print(self.zobristHash)
 
     def __call__(self, board_fen = None):
@@ -62,7 +64,9 @@ class ChessBot(ChessBotClass):
         for itr in range(8):
             self.enPassantHashes.append(random.randint(-sys.maxsize, sys.maxsize))
 
-    def captureValue(self, move):
+    def moveValue(self, move):
+        if len(self.bestLine) > self.lineIDX and self.bestLine[self.lineIDX] == move:
+            return 50000
         # Incorrectly valuates en passant captures as 0
         pieceType = self.board.piece_type_at(move.to_square)
         if move.from_square in self.checkers:
@@ -83,13 +87,31 @@ class ChessBot(ChessBotClass):
         evaluation = whiteTotal - blackTotal
         return evaluation
 
-    def findMoveRecursive(self, depth):
-        #self.pastPositions = []
-        self.materialBalance = self.calculateMaterialBalance()
+    def findMoveRecursive(self, depth, iterate=True):
+        self.bestLine = []
         self.skips = 0
-        while(len(self.pastPositions) < depth + 1):
-            self.pastPositions.append({})
-        return self.recurse(depth, 1 if self.board.turn == chess.WHITE else -1)
+        
+        depths = [depth]
+        if iterate:
+            depths = range(2, depth + 1)
+            
+        for itr in depths:
+            print(f"Search at depth {itr}")
+            self.pastPositions = []
+            self.materialBalance = self.calculateMaterialBalance()
+            while(len(self.pastPositions) < depth + 1):
+                self.pastPositions.append({})
+            self.currentDepth = itr
+            self.maxDepth = itr
+            evaluation, line = self.recurse(itr, 1 if self.board.turn == chess.WHITE else -1)
+            #self.bestLine = line
+            self.bestLine = []
+        
+        print(f"Best line: {self.bestLine}.")
+        if len(self.bestLine) != depth:
+            print("Line is not full depth!")
+            #raise "AAAAAA"
+        return evaluation, self.bestLine[0]
 
     def getOutcome(self, depth):
         outcome = self.board.outcome(claim_draw = False)
@@ -128,13 +150,14 @@ class ChessBot(ChessBotClass):
             return outcome, None
 
         bestEval = -math.inf * turnMultiplier
-        bestMove = None
+        bestLine = None
 
 
         #random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
-        moves.sort(reverse=True, key=self.captureValue)
+        self.lineIDX = self.maxDepth - depth
+        moves.sort(reverse=True, key=self.moveValue)
         oldMaterialBalance = self.materialBalance
         oldHash = self.zobristHash
 
@@ -154,8 +177,9 @@ class ChessBot(ChessBotClass):
             if not ignoreStuff and self.zobristHash in self.pastPositions[depth]:
                 evaluation = self.pastPositions[depth][self.zobristHash]
                 self.skips += 1
+                retLine = None
             else:
-                evaluation, _ = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
+                evaluation, retLine = self.recurse(depth - 1, -turnMultiplier, alpha, beta)
                 if not ignoreStuff:
                     self.pastPositions[depth][self.zobristHash] = evaluation
             self.board.pop()
@@ -165,7 +189,9 @@ class ChessBot(ChessBotClass):
 
             if evaluation * turnMultiplier > bestEval * turnMultiplier:
                 bestEval = evaluation
-                bestMove = move
+                bestLine = [move]
+                if retLine:
+                    bestLine.extend(retLine)
 
                 if (turnMultiplier == 1):
                     alpha = max(alpha, bestEval)
@@ -179,7 +205,7 @@ class ChessBot(ChessBotClass):
                         #break
                         return -1000000, None
 
-        return bestEval, bestMove
+        return bestEval, bestLine
 
     def evaluate(self):
         # Assumes the game has not ended
@@ -296,7 +322,7 @@ class ChessBot(ChessBotClass):
         return boardHash
 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=5)
+    bot = ChessBot(maxDepth=6)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):

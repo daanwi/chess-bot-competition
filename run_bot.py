@@ -1,4 +1,4 @@
-from template_bot import ChessBotClass, ChessBot
+from your_bot_file import ChessBotClass, ChessBot
 from itertools import count
 import time
 import numpy as np
