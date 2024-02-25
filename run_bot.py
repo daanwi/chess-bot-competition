@@ -172,7 +172,7 @@ class Judge():
 
 if __name__ == "__main__":
     # initialize the bots
-    bot_1 = ChessBot(maxDepth=4, iterate=True)
+    bot_1 = ChessBot(maxDepth=4, iterate=False)
     bot_2 = ChessBot(maxDepth=4, iterate=False)
 
     # run tournament

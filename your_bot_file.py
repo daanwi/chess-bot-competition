@@ -49,13 +49,22 @@ class ChessBot(ChessBotClass):
         pieceSquareTables = {}
         # Pawns
         pawnTable = [[100, 100, 100, 100, 100, 100, 100, 100],
-                     [90, 90, 80, 90, 90, 90, 90, 90],
-                     [80, 80, 70, 80, 80, 80, 80, 80],
-                     [60, 70, 70, 70, 70, 70, 70, 60],
-                     [50, 60, 60, 60, 60, 30, 60, 50],
-                     [40, 30, 60, 50, 50, 20, 30, 40],
+                     [90, 85, 85, 92, 92, 85, 85, 90],
+                     [80, 80, 80, 88, 88, 80, 80, 80],
+                     [70, 70, 70, 84, 84, 70, 70, 70],
+                     [50, 60, 60, 80, 80, 30, 30, 50],
+                     [40, 30, 50, 50, 50, 20, 30, 40],
                      [90, 90, 90, 30, 30, 90, 90, 90],
                      [0, 0, 0, 0, 0, 0, 0, 0]]
+        
+        knightTable = [[20, 40, 40, 40, 40, 40, 40, 20],
+                      [40, 50, 50, 60, 60, 50, 50, 40],
+                      [40, 50, 100, 100, 100, 100, 50, 40],
+                      [40, 50, 100, 100, 100, 100, 50, 40],
+                      [40, 50, 100, 100, 100, 100, 50, 40],
+                      [40, 50, 100, 100, 100, 100, 50, 40],
+                      [40, 50, 50, 60, 60, 50, 50, 40],
+                      [20, 40, 40, 40, 40, 40, 40, 20]]
         
         emptyTable = [[100, 100, 100, 100, 100, 100, 100, 100],
                       [100, 100, 100, 100, 100, 100, 100, 100],
@@ -65,10 +74,16 @@ class ChessBot(ChessBotClass):
                       [100, 100, 100, 100, 100, 100, 100, 100],
                       [100, 100, 100, 100, 100, 100, 100, 100],
                       [100, 100, 100, 100, 100, 100, 100, 100]]
+                      
+        for i in range(8):
+            for j in range(8):
+                pawnTable[i][j] = pawnTable[i][j] / 3000
+                emptyTable[i][j] = emptyTable[i][j] / 3000
+                knightTable[i][j] = knightTable[i][j] / 3000
         
         pieceSquareTables[chess.PAWN] = pawnTable
         pieceSquareTables[chess.BISHOP] = emptyTable
-        pieceSquareTables[chess.KNIGHT] = emptyTable
+        pieceSquareTables[chess.KNIGHT] = knightTable
         pieceSquareTables[chess.ROOK] = emptyTable
         pieceSquareTables[chess.QUEEN] = emptyTable
         pieceSquareTables[chess.KING] = emptyTable
@@ -252,7 +267,7 @@ class ChessBot(ChessBotClass):
         '''if evaluation != evaluation2:
             print(f"Wrong eval! {evaluation}. True eval: {evaluation2}.")
             self.materialBalance = evaluation2'''
-        opponentMoves = len([self.board.legal_moves])
+        '''opponentMoves = len([self.board.legal_moves])
         self.board.push(chess.Move.null())
         ownMoves = len([self.board.legal_moves])
         if self.board.turn == chess.WHITE:
@@ -261,14 +276,14 @@ class ChessBot(ChessBotClass):
         else:
             evaluation -= ownMoves / 300
             evaluation += opponentMoves / 500
-        self.board.pop()
+        self.board.pop()'''
             
         pieces = self.board.piece_map()
         for square, piece in pieces.items():
             if piece.color == chess.WHITE:
-                evaluation += self.pieceSquareTables[piece.piece_type][chess.square_rank(square)][chess.square_file(square)] / 300
+                evaluation += self.pieceSquareTables[piece.piece_type][chess.square_rank(square)][chess.square_file(square)]
             else:
-                evaluation += self.pieceSquareTables[piece.piece_type][chess.square_rank(square)][-(chess.square_file(square))] / 300
+                evaluation -= self.pieceSquareTables[piece.piece_type][-chess.square_rank(square)][chess.square_file(square)]
         
         
         return evaluation
