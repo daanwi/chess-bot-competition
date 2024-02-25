@@ -15,7 +15,7 @@ class ChessBotClass(ABC):
 
 # keep the bot named ChessBot when submitting
 class ChessBot(ChessBotClass):
-    def __init__(self, maxDepth=5):
+    def __init__(self, maxDepth=5, iterate=True):
         #self.board = chess.Board("r4rk1/2p2pp1/2p4p/p3q2b/1p2P3/P6P/1PP1NPP1/R2Q1RK1 w - - 1 17")
         self.board = chess.Board()
         self.pieceValues = {chess.PAWN: 1, chess.KNIGHT: 3,
@@ -29,20 +29,52 @@ class ChessBot(ChessBotClass):
         self.zobristHash = self.getZobristHash()
         self.skips = 0
         self.materialBalance = 0
-        self.pieceSquareTables = None
+        self.pieceSquareTables = self.getPieceSquareTables()
         self.bestLine = []
         self.lineIDX = 0
+        self.iterate = iterate
         #print(self.zobristHash)
 
     def __call__(self, board_fen = None):
         if board_fen:
             self.board = chess.Board(board_fen)
             self.zobristHash = self.getZobristHash()
-        evaluation, ret = self.findMoveRecursive(self.maxDepth)
+        evaluation, ret = self.findMoveRecursive(self.maxDepth, iterate=self.iterate)
         '''print("Skips: ", self.skips)
         print("Evaluation: ", evaluation)'''
         return ret
-
+        
+        
+    def getPieceSquareTables(self):
+        pieceSquareTables = {}
+        # Pawns
+        pawnTable = [[100, 100, 100, 100, 100, 100, 100, 100],
+                     [90, 90, 80, 90, 90, 90, 90, 90],
+                     [80, 80, 70, 80, 80, 80, 80, 80],
+                     [60, 70, 70, 70, 70, 70, 70, 60],
+                     [50, 60, 60, 60, 60, 30, 60, 50],
+                     [40, 30, 60, 50, 50, 20, 30, 40],
+                     [90, 90, 90, 30, 30, 90, 90, 90],
+                     [0, 0, 0, 0, 0, 0, 0, 0]]
+        
+        emptyTable = [[100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100],
+                      [100, 100, 100, 100, 100, 100, 100, 100]]
+        
+        pieceSquareTables[chess.PAWN] = pawnTable
+        pieceSquareTables[chess.BISHOP] = emptyTable
+        pieceSquareTables[chess.KNIGHT] = emptyTable
+        pieceSquareTables[chess.ROOK] = emptyTable
+        pieceSquareTables[chess.QUEEN] = emptyTable
+        pieceSquareTables[chess.KING] = emptyTable
+        
+        return pieceSquareTables
+        
 
     def initializeZobristHashNumbers(self):
         # Implemented according to https://www.chessprogramming.org/Zobrist_Hashing
@@ -66,15 +98,22 @@ class ChessBot(ChessBotClass):
 
     def moveValue(self, move):
         if len(self.bestLine) > self.lineIDX and self.bestLine[self.lineIDX] == move:
+            #print("Found move!")
+            #print(self.lineIDX)
             return 50000
+        #print("Did not find move!")
         # Incorrectly valuates en passant captures as 0
-        pieceType = self.board.piece_type_at(move.to_square)
-        if move.from_square in self.checkers:
+        val = 0
+        captureType = self.board.piece_type_at(move.to_square)
+        pieceType = self.board.piece_type_at(move.from_square)
+        if captureType is not None:
+            val += captureType
+            
+        '''if move.from_square in self.checkers:
             return 50
-        if pieceType is None:
-            return 0
-        return self.pieceValues[pieceType]
+        '''
         
+        return val
     def calculateMaterialBalance(self):
         blackTotal = 0
         whiteTotal = 0
@@ -96,7 +135,7 @@ class ChessBot(ChessBotClass):
             depths = range(2, depth + 1)
             
         for itr in depths:
-            print(f"Search at depth {itr}")
+            #print(f"Search at depth {itr}")
             self.pastPositions = []
             self.materialBalance = self.calculateMaterialBalance()
             while(len(self.pastPositions) < depth + 1):
@@ -104,8 +143,7 @@ class ChessBot(ChessBotClass):
             self.currentDepth = itr
             self.maxDepth = itr
             evaluation, line = self.recurse(itr, 1 if self.board.turn == chess.WHITE else -1)
-            #self.bestLine = line
-            self.bestLine = []
+            self.bestLine = line
         
         print(f"Best line: {self.bestLine}.")
         if len(self.bestLine) != depth:
@@ -153,7 +191,7 @@ class ChessBot(ChessBotClass):
         bestLine = None
 
 
-        #random.shuffle(moves)
+        random.shuffle(moves)
         # Killer move heuristic?
         self.checkers = self.board.checkers()
         self.lineIDX = self.maxDepth - depth
@@ -224,6 +262,15 @@ class ChessBot(ChessBotClass):
             evaluation -= ownMoves / 300
             evaluation += opponentMoves / 500
         self.board.pop()
+            
+        pieces = self.board.piece_map()
+        for square, piece in pieces.items():
+            if piece.color == chess.WHITE:
+                evaluation += self.pieceSquareTables[piece.piece_type][chess.square_rank(square)][chess.square_file(square)] / 300
+            else:
+                evaluation += self.pieceSquareTables[piece.piece_type][chess.square_rank(square)][-(chess.square_file(square))] / 300
+        
+        
         return evaluation
 
     def moveWithHash(self, move):
@@ -322,7 +369,7 @@ class ChessBot(ChessBotClass):
         return boardHash
 
 if __name__ == "__main__":
-    bot = ChessBot(maxDepth=6)
+    bot = ChessBot(maxDepth=5)
     #bot.verifyEvaluation(depth=4)
     #bot()
     '''for _ in range(100):
