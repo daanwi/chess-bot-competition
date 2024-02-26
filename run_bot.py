@@ -1,4 +1,4 @@
-from template_bot import ChessBotClass, ChessBot
+from your_bot_file import ChessBotClass, ChessBot
 from itertools import count
 import time
 import numpy as np
@@ -172,8 +172,8 @@ class Judge():
 
 if __name__ == "__main__":
     # initialize the bots
-    bot_1 = ChessBot(maxDepth=4)
-    bot_2 = ChessBot(maxDepth=4)
+    bot_1 = ChessBot(maxDepth=2)
+    bot_2 = ChessBot(maxDepth=2)
 
     # run tournament
     judge = Judge(bot_1, bot_2)

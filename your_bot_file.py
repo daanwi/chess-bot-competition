@@ -36,6 +36,12 @@ class ChessBot(ChessBotClass):
         if board_fen:
             self.board = chess.Board(board_fen)
             self.zobristHash = self.getZobristHash()
+        if len(self.board.piece_map()) < 10:
+            self.maxDepth = 6
+        if len(self.board.piece_map()) < 6:
+            self.maxDepth = 7
+        if len(self.board.piece_map()) < 4:
+            self.maxDepth = 8
         evaluation, ret = self.findMoveRecursive(self.maxDepth)
         '''print("Skips: ", self.skips)
         print("Evaluation: ", evaluation)'''
@@ -64,9 +70,9 @@ class ChessBot(ChessBotClass):
 
     def captureValue(self, move):
         # Incorrectly valuates en passant captures as 0
+        if self.board.gives_check(move):
+            return 2
         pieceType = self.board.piece_type_at(move.to_square)
-        if move.from_square in self.checkers:
-            return 50
         if pieceType is None:
             return 0
         return self.pieceValues[pieceType]
@@ -131,9 +137,8 @@ class ChessBot(ChessBotClass):
         bestMove = None
 
 
-        #random.shuffle(moves)
+        random.shuffle(moves)
         # Killer move heuristic?
-        self.checkers = self.board.checkers()
         moves.sort(reverse=True, key=self.captureValue)
         oldMaterialBalance = self.materialBalance
         oldHash = self.zobristHash
